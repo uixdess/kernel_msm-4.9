@@ -30,6 +30,10 @@
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 3
 
+#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
+#define CS35L41_CODEC_NAME "cs35l41.2-0040"
+#endif
+
 #define WSA8810_NAME_1 "wsa881x.20170211"
 #define WSA8810_NAME_2 "wsa881x.20170212"
 #define MSM_LL_QOS_VALUE 300 /* time in us to ensure LPM doesn't go in C3/C4 */
@@ -1694,6 +1698,11 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 	struct snd_soc_codec *ana_cdc;
 	struct snd_soc_pcm_runtime *rtd;
 	int ret = 0;
+#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
+	struct snd_soc_dai_link *dai_link;
+	struct snd_soc_codec *cs35l41_codec;
+	struct snd_soc_dapm_context * cs35l41_dapm;
+#endif
 
 	rtd = snd_soc_get_pcm_runtime(card, be_dl_name);
 	if (!rtd) {
@@ -1714,6 +1723,26 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 			"%s: msm_anlg_cdc_hs_detect failed\n", __func__);
 		kfree(mbhc_cfg_ptr->calibration);
 	}
+#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
+	dai_link = rtd->dai_link;
+	if (dai_link && dai_link->codec_name) {
+		if (!strcmp(dai_link->codec_name, CS35L41_CODEC_NAME)) {
+			dev_info(card->dev, "%s: found codec[%s]\n", __func__, CS35L41_CODEC_NAME);
+			cs35l41_codec = rtd->codec;
+			cs35l41_dapm = snd_soc_codec_get_dapm(cs35l41_codec);
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Playback");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Capture");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "DSP1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "Main AMP");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPRX1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPRX2");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPTX1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPTX2");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "SPK");
+			snd_soc_dapm_sync(cs35l41_dapm);
+		}
+	}
+#endif
 
 	return ret;
 }
@@ -2456,8 +2485,23 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 		.ignore_pmdown_time = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA6,
 	},
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+	{/* hw:x,40 */
+		.name = "Primary MI2S_TX Hostless",
+		.stream_name = "Primary MI2S_TX Hostless",
+		.cpu_dai_name = "PRI_MI2S_TX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_capture = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+				SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+#endif
 };
-
 
 static struct snd_soc_dai_link msm_int_wsa_dai[] = {
 	{/* hw:x,40 */
