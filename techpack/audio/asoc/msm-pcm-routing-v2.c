@@ -44,6 +44,10 @@
 #include "msm-qti-pp-config.h"
 #include "msm-dolby-dap-config.h"
 #include "msm-ds2-dap-config.h"
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+#include "dsp/smart_amp.h"
+#include "tas2562-calib.h"
+#endif
 
 #ifndef CONFIG_DOLBY_DAP
 #undef DOLBY_ADM_COPP_TOPOLOGY_ID
@@ -21172,7 +21176,9 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 	snd_soc_add_platform_controls(platform,
 			port_multi_channel_map_mixer_controls,
 			ARRAY_SIZE(port_multi_channel_map_mixer_controls));
-
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+	msm_smartamp_add_controls(platform);
+#endif
 	return 0;
 }
 
@@ -21332,11 +21338,20 @@ int __init msm_soc_routing_platform_init(void)
 	memset(&be_dai_name_table, 0, sizeof(be_dai_name_table));
 	memset(&last_be_id_configured, 0, sizeof(last_be_id_configured));
 
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+	pr_info("%s tas_calib_init", __func__);
+	tas_calib_init();
+#endif
+
 	return platform_driver_register(&msm_routing_pcm_driver);
 }
 
 void msm_soc_routing_platform_exit(void)
 {
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+	pr_info("%s tas_calib_exit", __func__);
+	tas_calib_exit();
+#endif
 	msm_routing_delete_cal_data();
 	memset(&be_dai_name_table, 0, sizeof(be_dai_name_table));
 	mutex_destroy(&routing_lock);
