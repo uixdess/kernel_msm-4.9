@@ -46,6 +46,9 @@
 #include "msm-qti-pp-config.h"
 #include "msm-dolby-dap-config.h"
 #include "msm-ds2-dap-config.h"
+#ifdef CONFIG_MSM_CSPL
+#include <dsp/msm-cirrus-playback.h>
+#endif
 #ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
 #include "dsp/smart_amp.h"
 #include "tas2562-calib.h"
@@ -21110,6 +21113,10 @@ static const struct snd_pcm_ops msm_routing_pcm_ops = {
 	.prepare        = msm_pcm_routing_prepare,
 };
 
+#ifdef CONFIG_MSM_CSPL
+extern void msm_crus_pb_add_controls(struct snd_soc_platform *platform);
+#endif
+
 /* Not used but frame seems to require it */
 static int msm_routing_probe(struct snd_soc_platform *platform)
 {
@@ -21165,6 +21172,10 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 	snd_soc_add_platform_controls(platform,
 		msm_routing_be_dai_name_table_mixer_controls,
 		ARRAY_SIZE(msm_routing_be_dai_name_table_mixer_controls));
+
+#ifdef CONFIG_MSM_CSPL
+	msm_crus_pb_add_controls(platform);
+#endif
 
 	snd_soc_add_platform_controls(platform, msm_source_tracking_controls,
 				ARRAY_SIZE(msm_source_tracking_controls));
