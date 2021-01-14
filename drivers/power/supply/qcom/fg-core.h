@@ -503,6 +503,7 @@ struct fg_chip {
 	bool			use_ima_single_mode;
 	bool			usb_present;
 	bool			twm_state;
+	bool			report_full;
 	bool			use_dma;
 	bool			qnovo_enable;
 	bool			suspended;
