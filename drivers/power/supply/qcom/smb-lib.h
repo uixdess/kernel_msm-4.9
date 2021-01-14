@@ -326,7 +326,14 @@ struct smb_charger {
 	int			boost_threshold_ua;
 	int			system_temp_level;
 	int			thermal_levels;
+#ifdef CONFIG_THERMAL
+	int			*thermal_mitigation_dcp;
+	int			*thermal_mitigation_qc3;
+	int			*thermal_mitigation_qc2;
+	int			*thermal_mitigation_pd_base;
+#else
 	int			*thermal_mitigation;
+#endif
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	int			fake_batt_status;
