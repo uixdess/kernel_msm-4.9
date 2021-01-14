@@ -328,6 +328,7 @@ struct smb_charger {
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
 	struct delayed_work     cc_float_charge_work;
+	struct delayed_work     charger_type_recheck;
 	struct delayed_work	check_vbus_work;
 
 	/* cached status */
@@ -408,6 +409,8 @@ struct smb_charger {
 	int			pulse_cnt;
 
 	int			die_health;
+	int			recheck_charger;
+	int			precheck_charger_type;
 };
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
@@ -555,6 +558,10 @@ int smblib_set_prop_ship_mode(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_set_prop_charge_qnovo_enable(struct smb_charger *chg,
 				const union power_supply_propval *val);
+int smblib_set_prop_type_recheck(struct smb_charger *chg,
+				const union power_supply_propval *val);
+int smblib_get_prop_type_recheck(struct smb_charger *chg,
+				union power_supply_propval *val);
 void smblib_suspend_on_debug_battery(struct smb_charger *chg);
 int smblib_rerun_apsd_if_required(struct smb_charger *chg);
 int smblib_get_prop_fcc_delta(struct smb_charger *chg,
