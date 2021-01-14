@@ -372,6 +372,10 @@ static void *usbpd_ipc_log;
 #define ID_HDR_VID		0x05c6 /* qcom */
 #define PROD_VDO_PID		0x0a00 /* TBD */
 
+/* limit APDO voltage to maxium 7000mV for better efficiency */
+#define MAX_ALLOWED_APDO_UV		7000000
+#define MAX_ALLOWED_APDO_UA		3000000
+
 static bool check_vsafe0v = true;
 module_param(check_vsafe0v, bool, 0600);
 
@@ -799,6 +803,16 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 		}
 
 		curr = ua / 1000;
+
+		/*
+		 * set maxium allowed request voltage for apdo to 7V
+		 * for bettery charging efficiency
+		 */
+#ifdef CONFIG_CHARGER_BQ25910_SLAVE
+		if (uv >= MAX_ALLOWED_APDO_UV)
+			uv = MAX_ALLOWED_APDO_UV;
+#endif
+
 		pd->requested_voltage = uv;
 		pd->rdo = PD_RDO_AUGMENTED(pdo_pos, mismatch, 1, 1,
 				uv / 20000, ua / 50000);
