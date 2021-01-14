@@ -2719,6 +2719,8 @@ static int fg_inc_store_cycle_ctr(struct fg_chip *chip, int bucket)
 static void fg_cycle_counter_update(struct fg_chip *chip)
 {
 	int rc = 0, bucket, i, batt_soc;
+	union power_supply_propval prop = {0, };
+	int input_suspend = 0;
 
 	if (!chip->cyc_ctr.en)
 		return;
@@ -2733,6 +2735,16 @@ static void fg_cycle_counter_update(struct fg_chip *chip)
 	/* We need only the most significant byte here */
 	batt_soc = (u32)batt_soc >> 24;
 
+	if (chip->batt_psy) {
+		rc = power_supply_get_property(chip->batt_psy, POWER_SUPPLY_PROP_INPUT_SUSPEND,
+				&prop);
+		if (rc < 0) {
+			pr_err("Error in getting charging status, rc=%d\n", rc);
+			goto out;
+		}
+		input_suspend = prop.intval;
+	}
+
 	/* Find out which bucket the SOC falls in */
 	bucket = batt_soc / BUCKET_SOC_PCT;
 
@@ -2741,7 +2753,7 @@ static void fg_cycle_counter_update(struct fg_chip *chip)
 			chip->cyc_ctr.started[bucket] = true;
 			chip->cyc_ctr.last_soc[bucket] = batt_soc;
 		}
-	} else if (chip->charge_done || !is_input_present(chip)) {
+	} else if (chip->charge_done || !is_input_present(chip) || input_suspend) {
 		for (i = 0; i < BUCKET_COUNT; i++) {
 			if (chip->cyc_ctr.started[i] &&
 				batt_soc > chip->cyc_ctr.last_soc[i] + 2) {
