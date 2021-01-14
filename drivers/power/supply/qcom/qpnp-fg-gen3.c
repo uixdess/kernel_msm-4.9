@@ -2100,6 +2100,7 @@ static int fg_set_constant_chg_voltage(struct fg_chip *chip, int volt_uv)
 	return 0;
 }
 
+#define DEFAULT_RECHARGE_SOC_RAW	0xfd
 static int fg_set_recharge_soc(struct fg_chip *chip, int recharge_soc)
 {
 	u8 buf;
@@ -2112,6 +2113,9 @@ static int fg_set_recharge_soc(struct fg_chip *chip, int recharge_soc)
 		return 0;
 
 	fg_encode(chip->sp, FG_SRAM_RECHARGE_SOC_THR, recharge_soc, &buf);
+	if ((buf <= DEFAULT_RECHARGE_SOC_RAW) && chip->health != POWER_SUPPLY_HEALTH_WARM)
+		buf += 1;
+
 	rc = fg_sram_write(chip,
 			chip->sp[FG_SRAM_RECHARGE_SOC_THR].addr_word,
 			chip->sp[FG_SRAM_RECHARGE_SOC_THR].addr_byte, &buf,
@@ -2150,8 +2154,8 @@ static int fg_adjust_recharge_soc(struct fg_chip *chip)
 	 */
 	if (is_input_present(chip)) {
 		if (chip->charge_done) {
-			if (!chip->recharge_soc_adjusted) {
-				/* Get raw monotonic SOC for calculation */
+		if (chip->health == POWER_SUPPLY_HEALTH_GOOD)
+			return 0;
 				rc = fg_get_msoc(chip, &msoc);
 				if (rc < 0) {
 					pr_err("Error in getting msoc, rc=%d\n",
@@ -2163,8 +2167,8 @@ static int fg_adjust_recharge_soc(struct fg_chip *chip)
 				new_recharge_soc = msoc - (FULL_CAPACITY -
 								recharge_soc);
 				chip->recharge_soc_adjusted = true;
-			} else {
-				/* adjusted already, do nothing */
+	} else if ((!is_input_present(chip) || chip->health == POWER_SUPPLY_HEALTH_GOOD)
+								&& chip->recharge_soc_adjusted) {
 				if (chip->health != POWER_SUPPLY_HEALTH_GOOD)
 					return 0;
 
@@ -2187,9 +2191,7 @@ static int fg_adjust_recharge_soc(struct fg_chip *chip)
 			chip->recharge_soc_adjusted = false;
 		}
 	} else {
-		/* Restore the default value */
-		new_recharge_soc = recharge_soc;
-		chip->recharge_soc_adjusted = false;
+		return 0;
 	}
 
 	rc = fg_set_recharge_soc(chip, new_recharge_soc);
@@ -3000,6 +3002,15 @@ static void status_change_work(struct work_struct *work)
 	rc = fg_charge_full_update(chip);
 	if (rc < 0)
 		pr_err("Error in charge_full_update, rc=%d\n", rc);
+
+rc = power_supply_get_property(chip->batt_psy,
+						POWER_SUPPLY_PROP_HEALTH, &prop);
+	if (rc < 0) {
+		pr_err("Error in getting battery health, rc=%d\n", rc);
+	goto out;
+	}
+
+	chip->health = prop.intval;
 
 	rc = fg_adjust_recharge_soc(chip);
 	if (rc < 0)
