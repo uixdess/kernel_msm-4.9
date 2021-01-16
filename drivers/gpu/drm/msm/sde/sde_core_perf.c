@@ -215,10 +215,6 @@ int sde_core_perf_crtc_check(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	/* we only need bandwidth check on real-time clients (interfaces) */
-	if (sde_crtc_get_client_type(crtc) == NRT_CLIENT)
-		return 0;
-
 	sde_cstate = to_sde_crtc_state(state);
 
 	/* obtain new values */
@@ -371,8 +367,12 @@ static void _sde_core_perf_crtc_update_bus(struct sde_kms *kms,
 
 	case RT_RSC_CLIENT:
 		sde_cstate = to_sde_crtc_state(crtc->state);
-		sde_rsc_client_vote(sde_cstate->rsc_client,
+		if (sde_cstate->rsc_client) {
+			sde_rsc_client_vote(sde_cstate->rsc_client,
 				bus_id, bus_ab_quota, bus_ib_quota);
+			SDE_DEBUG("client:%s bus_id=%d ab=%llu ib=%llu\n", "rt_rsc",
+					bus_id, bus_ab_quota, bus_ib_quota);
+		}
 		SDE_DEBUG("client:%s bus_id=%d ab=%llu ib=%llu\n", "rt_rsc",
 				bus_id, bus_ab_quota, bus_ib_quota);
 		break;
