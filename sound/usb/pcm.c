@@ -491,6 +491,7 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 
 	return 0;
 }
+extern void kick_usbpd_vbus_sm(void);
 
 /*
  * find a matching format and set up the interface
@@ -522,6 +523,10 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 			dev_err(&dev->dev,
 				"%d:%d: return to setting 0 failed (%d)\n",
 				fmt->iface, fmt->altsetting, err);
+			if((0x2717 == USB_ID_VENDOR(subs->stream->chip->usb_id))&&(0x3801 == USB_ID_PRODUCT(subs->stream->chip->usb_id)))
+			{
+				kick_usbpd_vbus_sm();
+			}
 			return -EIO;
 		}
 		subs->interface = -1;
