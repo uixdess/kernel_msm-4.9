@@ -1,4 +1,5 @@
 /* Copyright (c) 2018,2019 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -109,10 +110,9 @@ enum print_reason {
 
 enum {
 	AICL_RERUN_WA_BIT	= BIT(0),
-	FORCE_INOV_DISABLE_BIT	= BIT(1),
 };
 
-static int debug_mask;
+static int debug_mask = PR_PARALLEL;
 module_param_named(debug_mask, debug_mask, int, 0600);
 
 #define pl_dbg(chip, reason, fmt, ...)				\
@@ -321,7 +321,6 @@ static ssize_t slave_pct_store(struct class *c, struct class_attribute *attr,
 #else
 	chip->slave_pct = val;
 #endif
-	chip->slave_pct = val;
 
 	rc = validate_parallel_icl(chip, &disable);
 	if (rc < 0)
@@ -1325,8 +1324,7 @@ static bool is_parallel_available(struct pl_data *chip)
 	chip->pl_mode = pval.intval;
 
 	/* Disable autonomous votage increments for USBIN-USBIN */
-	if (IS_USBIN(chip->pl_mode)
-			&& (chip->wa_flags & FORCE_INOV_DISABLE_BIT)) {
+	if (IS_USBIN(chip->pl_mode)) {
 		if (!chip->hvdcp_hw_inov_dis_votable)
 			chip->hvdcp_hw_inov_dis_votable =
 					find_votable("HVDCP_HW_INOV_DIS");
@@ -1666,9 +1664,7 @@ static void pl_config_init(struct pl_data *chip, int smb_version)
 	switch (smb_version) {
 	case PMI8998_SUBTYPE:
 	case PM660_SUBTYPE:
-		chip->wa_flags = AICL_RERUN_WA_BIT | FORCE_INOV_DISABLE_BIT;
-		break;
-	case PMI632_SUBTYPE:
+		chip->wa_flags = AICL_RERUN_WA_BIT;
 		break;
 	default:
 		break;

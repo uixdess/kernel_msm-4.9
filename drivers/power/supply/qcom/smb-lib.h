@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,6 +27,15 @@ enum print_reason {
 	PR_MISC		= BIT(2),
 	PR_PARALLEL	= BIT(3),
 	PR_OTG		= BIT(4),
+	PR_OEM          = BIT(5),
+};
+
+enum hvdcp3_type {
+	HVDCP3_NONE = 0,
+	HVDCP3_CLASSA_18W,
+	HVDCP3_CLASSB_27W,
+	USB_PD,
+	HVDCP2_TYPE,
 };
 
 #define DEFAULT_VOTER			"DEFAULT_VOTER"
@@ -77,13 +87,19 @@ enum print_reason {
 #define CHG_AWAKE_VOTER            	"CHG_AWAKE_VOTER"
 #define CC_FLOAT_VOTER         		"CC_FLOAT_VOTER"
 #define UNSTANDARD_QC2_VOTER            "UNSTANDARD_QC2_VOTER"
+#define JEITA_VOTER			"JEITA_VOTER"
 #define PL_HIGH_CAPACITY_VOTER		"PL_HIGH_CAPACITY_VOTER"
 
 #define VCONN_MAX_ATTEMPTS	3
 #define OTG_MAX_ATTEMPTS	3
 #define BOOST_BACK_STORM_COUNT	3
 #define WEAK_CHG_STORM_COUNT	8
+#define CHG_MONITOR_WORK_DELAY_MS  30000
 #define CC_FLOAT_WORK_START_DELAY_MS   700
+#define BATT_TEMP_CRITICAL_LOW     50
+#define BATT_TEMP_COOL_THR     150
+/* cutoff voltage threshold */
+#define CUTOFF_VOL_THR		3400000
 
 /* QC2.0 voltage UV threshold 7.8V */
 #define QC2_HVDCP_VOL_UV_THR		7800000
@@ -220,6 +236,7 @@ struct smb_params {
 	struct smb_chg_param	dc_icl_div2_mid_hv;
 	struct smb_chg_param	dc_icl_div2_hv;
 	struct smb_chg_param	jeita_cc_comp;
+	struct smb_chg_param	jeita_fv_comp;
 	struct smb_chg_param	freq_buck;
 	struct smb_chg_param	freq_boost;
 };
@@ -325,11 +342,15 @@ struct smb_charger {
 	struct delayed_work	icl_change_work;
 	struct delayed_work	pl_enable_work;
 	struct work_struct	legacy_detection_work;
+	struct delayed_work	reg_work;
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
+	struct delayed_work     monitor_low_temp_work;
 	struct delayed_work     cc_float_charge_work;
 	struct delayed_work     charger_type_recheck;
 	struct delayed_work	check_vbus_work;
+	struct delayed_work     connector_health_work;
+	struct delayed_work     status_report_work;
 #ifdef CONFIG_CHARGER_BQ25910_SLAVE
 	struct delayed_work     dp_dm_pulse_work;
 #endif
@@ -350,6 +371,9 @@ struct smb_charger {
 #else
 	int			*thermal_mitigation;
 #endif
+	int			jeita_ccomp_cool_delta;
+	int			jeita_ccomp_hot_delta;
+	int			jeita_ccomp_low_delta;
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	int			fake_batt_status;
@@ -366,6 +390,7 @@ struct smb_charger {
 	int			otg_attempts;
 	int			vconn_attempts;
 	int			default_icl_ua;
+	int			last_soc;
 	int			otg_cl_ua;
 	bool			uusb_apsd_rerun_done;
 	bool			pd_hard_reset;
@@ -384,8 +409,10 @@ struct smb_charger {
 	bool			disable_stat_sw_override;
 	bool			in_chg_lock;
 	bool			fcc_stepper_enable;
+	bool			report_usb_absent;
 	bool            check_vbus_once;
 	bool            unstandard_hvdcp;
+	bool			support_hw_scpcharger;
 	bool			ufp_only_mode;
 
 	/* workaround flag */
@@ -416,6 +443,19 @@ struct smb_charger {
 	int			die_health;
 	int			recheck_charger;
 	int			precheck_charger_type;
+};
+
+enum quick_charge_type {
+	QUICK_CHARGE_NORMAL = 0,
+	QUICK_CHARGE_FAST,
+	QUICK_CHARGE_FLASH,
+	QUICK_CHARGE_TURBE,
+	QUICK_CHARGE_MAX,
+};
+
+struct quick_charge {
+	enum power_supply_type adap_type;
+	enum quick_charge_type adap_cap;
 };
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
@@ -567,6 +607,7 @@ int smblib_set_prop_type_recheck(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_get_prop_type_recheck(struct smb_charger *chg,
 				union power_supply_propval *val);
+int smblib_get_quick_charge_type(struct smb_charger *chg);
 void smblib_suspend_on_debug_battery(struct smb_charger *chg);
 int smblib_rerun_apsd_if_required(struct smb_charger *chg);
 int smblib_get_prop_fcc_delta(struct smb_charger *chg,
@@ -594,4 +635,6 @@ int smblib_force_ufp(struct smb_charger *chg);
 
 int smblib_init(struct smb_charger *chg);
 int smblib_deinit(struct smb_charger *chg);
+/* this function is used for rapid plug in/out charger to notify policy engine to update typec mode */
+extern void notify_typec_mode_changed_for_pd(void);
 #endif /* __SMB2_CHARGER_H */
