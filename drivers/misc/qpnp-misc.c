@@ -187,6 +187,7 @@ int qpnp_misc_read_reg(struct device_node *node, u16 addr, u8 *val)
 	*val = temp;
 	return 0;
 }
+EXPORT_SYMBOL(qpnp_misc_read_reg);
 
 int qpnp_misc_irqs_available(struct device *consumer_dev)
 {
