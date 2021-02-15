@@ -19,8 +19,15 @@
 #include "smp2p_private.h"
 
 #define SET_DELAY (2 * HZ)
+
 #define PROC_AWAKE_ID 12 /* 12th bit */
 static int slst_gpio_base_id;
+
+void smp2p_set_awake(bool awake)
+{
+	gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, awake ? 1 : 0);
+}
+EXPORT_SYMBOL(smp2p_set_awake);
 
 /**
  * sleepstate_pm_notifier() - PM notifier callback function.

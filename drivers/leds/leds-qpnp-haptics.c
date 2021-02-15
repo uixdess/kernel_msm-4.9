@@ -32,8 +32,7 @@
 #include <linux/gpio.h>
 #include <soc/qcom/socinfo.h>
 
-extern int PROC_AWAKE_ID; /* 12th bit */
-extern int slst_gpio_base_id;
+extern void smp2p_set_awake(bool awake);
 
 /* Register definitions */
 #define HAP_STATUS_1_REG(chip)		(chip->base + 0x0A)
@@ -1569,14 +1568,14 @@ static ssize_t qpnp_haptics_show_debug_for_sensor_tmp(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	/* For now nothing to show */
-	gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 0);
+	smp2p_set_awake(false);
 	printk("debug for sensor tmp suspend\n");
 	return snprintf(buf, PAGE_SIZE, "%d\n", 0);
 }
 static ssize_t qpnp_haptics_store_debug_for_sensor_tmp(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 1);
+	smp2p_set_awake(false);
 	printk("debug for sensor tmp resume\n");
 	return count;
 }
